@@ -1,0 +1,53 @@
+import { loadEnvFile } from 'node:process';
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
+import { generateVisualizationController } from './controllers/main.js';
+
+// Load environment variables from .env
+loadEnvFile();
+
+const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
+
+// Create Fastify instance
+const fastify = Fastify({
+  logger: {
+    level: process.env.NODE_ENV === 'development' ? 'info' : 'warn',
+  },
+});
+
+// CORS plugin
+await fastify.register(cors, {
+  origin: process.env.CORS_ORIGIN || '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
+
+// Multipart plugin
+await fastify.register(multipart, {
+  limits: {
+    fieldNameSize: 100, // Max field name size in bytes
+    fieldSize: 1024 * 1024, // Max field value size in bytes (1MB)
+    fields: 20, // Max number of non-file fields
+    fileSize: 10 * 1024 * 1024, // Max file size (10MB)
+    files: 15, // Max number of file fields
+    headerPairs: 2000, // Max number of header key=>value pairs
+    parts: 30, // Max number of parts (fields + files)
+  },
+});
+
+fastify.post('/generate-visualization', generateVisualizationController);
+
+const start = async () => {
+  try {
+    await fastify.listen({ port: PORT, host: HOST });
+    console.log(`🚀 Server running in http://${HOST}:${PORT}`);
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+
+start();
