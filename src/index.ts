@@ -38,6 +38,10 @@ await fastify.register(multipart, {
   },
 });
 
+fastify.get('/health', async () => {
+  return { status: 'ok' };
+});
+
 fastify.post('/generate-visualization', generateVisualizationController);
 
 const start = async () => {
