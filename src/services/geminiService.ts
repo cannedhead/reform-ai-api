@@ -3,7 +3,9 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import type { MultipartFile } from '@fastify/multipart';
 import { GenerateVisualizationParams } from '../types.js';
 
-loadEnvFile();
+if (!process.env.K_SERVICE) {
+  loadEnvFile();
+}
 
 const API_KEY = process.env.API_KEY;
 if (!API_KEY) {

@@ -5,9 +5,11 @@ import multipart from '@fastify/multipart';
 import { generateVisualizationController } from './controllers/main.js';
 
 // Load environment variables from .env
-loadEnvFile();
+if (!process.env.K_SERVICE) {
+  loadEnvFile();
+}
 
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT) || 8080;
 
 // Create Fastify instance
 const fastify = Fastify({
