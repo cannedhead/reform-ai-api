@@ -7,12 +7,17 @@ if (!process.env.K_SERVICE) {
   loadEnvFile();
 }
 
-const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
-  throw new Error("API_KEY environment variable not set");
+const isDev = process.env.NODE_ENV === 'development'
+
+if (isDev) {
+
+  const API_KEY = process.env.API_KEY;
+  if (!API_KEY) {
+    throw new Error("API_KEY environment variable not set");
+  }
 }
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const ai = new GoogleGenAI(isDev ? { apiKey: process.env.API_KEY } : {});
 
 /**
  * Convierte un MultipartFile con Buffer a formato Gemini
