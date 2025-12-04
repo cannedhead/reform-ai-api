@@ -4,60 +4,56 @@ import type { MultipartFile } from '@fastify/multipart';
 import { GenerateVisualizationParams } from '../types.js';
 
 if (!process.env.K_SERVICE) {
-  loadEnvFile();
+	loadEnvFile();
 }
 
-const isDev = process.env.NODE_ENV === 'development'
-
-if (isDev) {
-
-  const API_KEY = process.env.API_KEY;
-  if (!API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-  }
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+	throw new Error("API_KEY environment variable not set");
 }
 
-const ai = new GoogleGenAI(isDev ? { apiKey: process.env.API_KEY } : {});
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Convierte un MultipartFile con Buffer a formato Gemini
  */
 const bufferToGenerativePart = (file: MultipartFile & { buffer: Buffer }) => {
-  const base64Data = file.buffer.toString('base64');
-  return {
-    inlineData: { data: base64Data, mimeType: file.mimetype },
-  };
+	const base64Data = file.buffer.toString('base64');
+	return {
+		inlineData: { data: base64Data, mimeType: file.mimetype },
+	};
 };
 
 export const generateVisualization = async (params: GenerateVisualizationParams): Promise<string> => {
-  const {
-    roomImage,
-    roomType,
-    stylePreset,
-    moodBoardImages,
-    furnitureImage,
-    textPrompt,
-    styleInfluence,
-    isRefinement = false,
-  } = params;
+	const {
+		roomImage,
+		roomType,
+		stylePreset,
+		moodBoardImages,
+		furnitureImage,
+		textPrompt,
+		styleInfluence,
+		isRefinement = false,
+	} = params;
 
-  const model = 'gemini-2.5-flash-image';
+	const model = 'gemini-2.5-flash-image';
 
-  let influencePrompt = '';
-  if (moodBoardImages.length > 0) {
-    if (styleInfluence < 33) {
-      influencePrompt = `Heavily prioritize the preset style (${stylePreset.name}) over the mood board images.`;
-    } else if (styleInfluence > 66) {
-      influencePrompt = `Heavily prioritize the provided mood board images for style inspiration over the preset style.`;
-    } else {
-      influencePrompt = `Blend the preset style (${stylePreset.name}) and the mood board images evenly.`;
-    }
-  } else {
-    influencePrompt = 'Use the preset style as the primary design guide.';
-  }
+	let influencePrompt = '';
+	if (moodBoardImages.length > 0) {
+		if (styleInfluence < 33) {
+			influencePrompt = `Heavily prioritize the preset style (${stylePreset.name}) over the mood board images.`;
+		} else if (styleInfluence > 66) {
+			influencePrompt = `Heavily prioritize the provided mood board images for style inspiration over the preset style.`;
+		} else {
+			influencePrompt = `Blend the preset style (${stylePreset.name}) and the mood board images evenly.`;
+		}
+	} else {
+		influencePrompt = 'Use the preset style as the primary design guide.';
+	}
 
-  const furniturePrompt = furnitureImage
-    ? `
+	const furniturePrompt = furnitureImage
+		? `
     **Furniture Integration:**
     - An image of a specific piece of furniture has been provided. You MUST incorporate this exact piece of furniture into the final design.
     - **Crucial Placement Instructions:**
@@ -66,9 +62,9 @@ export const generateVisualization = async (params: GenerateVisualizationParams)
         3.  **Correct Scale & Perspective:** The furniture MUST be scaled to realistic proportions relative to the room and other objects. Its perspective must perfectly align with the room's vanishing points.
         4.  **Seamless Integration:** The final result should be photorealistic and look like a single, cohesive photograph. The furniture should not look like it was digitally added.
         5.  **Lighting and Shadows:** Meticulously match the lighting on the new furniture to the room's existing light sources. It must cast accurate and soft shadows on the floor and surrounding objects to ground it in the scene.`
-    : '';
+		: '';
 
-  const fullPrompt = `
+	const fullPrompt = `
     Act as an expert interior designer. ${isRefinement ? 'Refine the provided image based on the user request.' : 'Redesign the provided room image.'}
 
     **Primary Instructions:**
@@ -89,38 +85,38 @@ export const generateVisualization = async (params: GenerateVisualizationParams)
     Generate the ${isRefinement ? 'refined' : 'redesigned'} room image.
   `;
 
-  const roomImagePart = bufferToGenerativePart(roomImage);
+	const roomImagePart = bufferToGenerativePart(roomImage);
 
-  const moodBoardParts = moodBoardImages.map(bufferToGenerativePart);
+	const moodBoardParts = moodBoardImages.map(bufferToGenerativePart);
 
-  const parts = [
-    roomImagePart,
-    { text: fullPrompt },
-    ...moodBoardParts,
-  ];
+	const parts = [
+		roomImagePart,
+		{ text: fullPrompt },
+		...moodBoardParts,
+	];
 
-  if (furnitureImage) {
-    const furnitureImagePart = bufferToGenerativePart(furnitureImage);
-    parts.push(furnitureImagePart);
-  }
+	if (furnitureImage) {
+		const furnitureImagePart = bufferToGenerativePart(furnitureImage);
+		parts.push(furnitureImagePart);
+	}
 
-  const contents = {
-    parts,
-  };
+	const contents = {
+		parts,
+	};
 
-  const response = await ai.models.generateContent({
-    model: model,
-    contents,
-    config: {
-      responseModalities: [Modality.IMAGE],
-    },
-  });
+	const response = await ai.models.generateContent({
+		model: model,
+		contents,
+		config: {
+			responseModalities: [Modality.IMAGE],
+		},
+	});
 
-  const firstPart = response.candidates?.[0]?.content?.parts?.[0];
+	const firstPart = response.candidates?.[0]?.content?.parts?.[0];
 
-  if (firstPart && firstPart.inlineData && firstPart.inlineData.data) {
-    return firstPart.inlineData.data;
-  } else {
-    throw new Error('No image was generated by the API. The response may have been blocked.');
-  }
+	if (firstPart && firstPart.inlineData && firstPart.inlineData.data) {
+		return firstPart.inlineData.data;
+	} else {
+		throw new Error('No image was generated by the API. The response may have been blocked.');
+	}
 };

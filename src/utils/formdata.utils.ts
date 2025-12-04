@@ -116,7 +116,7 @@ export async function processVisualizationFormData(
         stylePreset: validatedData.stylePreset,
         moodBoardImages,
         furnitureImage,
-        textPrompt: validatedData.textPrompt,
+        textPrompt: validatedData.textPrompt || '',
         styleInfluence: validatedData.styleInfluence,
         isRefinement: validatedData.isRefinement,
     };

@@ -9,7 +9,7 @@ export const stylePresetSchema = z.object({
 // Esquema para validar los datos del FormData
 export const generateVisualizationSchema = z.object({
     roomType: z.string().min(1, 'El tipo de habitación es requerido'),
-    textPrompt: z.string().min(1, 'El prompt de texto es requerido'),
+    textPrompt: z.string().optional(),
     styleInfluence: z.number()
         .min(0, 'La influencia del estilo debe ser minimo 0'),
     isRefinement: z.boolean().optional().default(false),
