@@ -29,25 +29,20 @@ export interface ProcessedVisualizationData {
 export async function processVisualizationFormData(
     parts: AsyncIterableIterator<Multipart>
 ): Promise<ProcessedVisualizationData> {
-    const fields: Record<string, string> = {};
+    const fields: Record<string, string | boolean> = {};
     const files: Record<string, MultipartFile | MultipartFile[]> = {};
-    console.log('Starting to process form data parts');
-    // Procesar todas las partes del FormData
+
     for await (const part of parts) {
-        console.log('Processing part:', part.fieldname, 'of type:', part.type);
         const fieldName = part.fieldname;
 
         if (part.type === 'file') {
-            // Es un archivo - convertir a buffer para consumir el stream
             const buffer = await part.toBuffer();
 
-            // Crear un objeto con los datos del archivo más el buffer
             const fileWithBuffer = {
                 ...part,
-                buffer, // Guardamos el buffer para usarlo después si es necesario
+                buffer,
             };
 
-            // Manejar arrays de archivos (moodBoardImages)
             if (fieldName === 'moodBoardImages') {
                 if (!files[fieldName]) {
                     files[fieldName] = [];
@@ -57,12 +52,13 @@ export async function processVisualizationFormData(
                 files[fieldName] = fileWithBuffer as any;
             }
         } else {
-            // Es un campo de texto (type === 'field')
-            fields[fieldName] = part.value as string;
+            if (part.value === 'true' || part.value === 'false') {
+                fields[fieldName] = part.value === 'true';
+            } else {
+                fields[fieldName] = part.value as string;
+            }
         }
     }
-
-    console.log('Fields:', fields);
 
     // Validar que todos los campos requeridos estén presentes
     const roomImage = files['roomImage'] as (MultipartFile & { buffer: Buffer });
@@ -78,18 +74,15 @@ export async function processVisualizationFormData(
         validateImageFiles(moodBoardImages, 'moodBoardImages', { min: 1, max: 10 });
     }
 
-    // Validar furnitureImage si existe
     const furnitureImage = files['furnitureImage'] as (MultipartFile & { buffer: Buffer }) | undefined;
     if (furnitureImage) {
         validateImageFile(furnitureImage, 'furnitureImage');
     }
 
-    // Parsear y validar campos de texto
-    const styleInfluence = parseNumber(fields['styleInfluence'], 'styleInfluence');
-    const isRefinement = parseBoolean(fields['isRefinement']);
-    const stylePreset = parseJSON<StylePresetInput>(fields['stylePreset'], 'stylePreset');
+    const styleInfluence = parseNumber(fields['styleInfluence'].toString(), 'styleInfluence');
+    const isRefinement = parseBoolean(fields['isRefinement'].toString());
+    const stylePreset = parseJSON<StylePresetInput>(fields['stylePreset'].toString(), 'stylePreset');
 
-    // Crear el objeto con los datos para validar con Zod
     const dataToValidate = {
         roomType: fields['roomType'],
         textPrompt: fields['textPrompt'],

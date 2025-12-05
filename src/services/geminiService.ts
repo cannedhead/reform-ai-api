@@ -7,6 +7,18 @@ if (!process.env.K_SERVICE) {
 	loadEnvFile();
 }
 
+// const isDev = process.env.NODE_ENV === 'development'
+
+// if (isDev) {
+
+//   const API_KEY = process.env.API_KEY;
+//   if (!API_KEY) {
+//     throw new Error("API_KEY environment variable not set");
+//   }
+// }
+
+// const ai = new GoogleGenAI(isDev ? { apiKey: process.env.API_KEY } : {});
+
 const API_KEY = process.env.API_KEY;
 if (!API_KEY) {
 	throw new Error("API_KEY environment variable not set");
@@ -15,9 +27,6 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-/**
- * Convierte un MultipartFile con Buffer a formato Gemini
- */
 const bufferToGenerativePart = (file: MultipartFile & { buffer: Buffer }) => {
 	const base64Data = file.buffer.toString('base64');
 	return {
@@ -34,7 +43,7 @@ export const generateVisualization = async (params: GenerateVisualizationParams)
 		furnitureImage,
 		textPrompt,
 		styleInfluence,
-		isRefinement = false,
+		isRefinement,
 	} = params;
 
 	const model = 'gemini-2.5-flash-image';
