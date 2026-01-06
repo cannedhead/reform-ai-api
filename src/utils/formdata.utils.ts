@@ -21,6 +21,8 @@ export interface ProcessedVisualizationData {
     textPrompt: string;
     styleInfluence: number;
     isRefinement: boolean;
+    // Previous generated image for refinement context
+    previousResultImage?: MultipartFile & { buffer: Buffer };
 }
 
 /**
@@ -79,6 +81,11 @@ export async function processVisualizationFormData(
         validateImageFile(furnitureImage, 'furnitureImage');
     }
 
+    const previousResultImage = files['previousResultImage'] as (MultipartFile & { buffer: Buffer }) | undefined;
+    if (previousResultImage) {
+        validateImageFile(previousResultImage, 'previousResultImage');
+    }
+
     const styleInfluence = parseNumber(fields['styleInfluence'].toString(), 'styleInfluence');
     const isRefinement = parseBoolean(fields['isRefinement'].toString());
     const stylePreset = parseJSON<StylePresetInput>(fields['stylePreset'].toString(), 'stylePreset');
@@ -112,5 +119,6 @@ export async function processVisualizationFormData(
         textPrompt: validatedData.textPrompt || '',
         styleInfluence: validatedData.styleInfluence,
         isRefinement: validatedData.isRefinement,
+        previousResultImage,
     };
 }

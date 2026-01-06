@@ -2,6 +2,7 @@ import { loadEnvFile } from 'node:process';
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { MultipartFile } from '@fastify/multipart';
 import { GenerateVisualizationParams } from '../types.js';
+import { buildVisualizationPrompt, buildInfluencePrompt, buildFurniturePrompt } from '../prompts/visualization.prompt.js';
 
 if (!process.env.K_SERVICE) {
 	loadEnvFile();
@@ -44,65 +45,42 @@ export const generateVisualization = async (params: GenerateVisualizationParams)
 		textPrompt,
 		styleInfluence,
 		isRefinement,
+		previousResultImage,
 	} = params;
 
 	const model = 'gemini-2.5-flash-image';
 
-	let influencePrompt = '';
-	if (moodBoardImages.length > 0) {
-		if (styleInfluence < 33) {
-			influencePrompt = `Heavily prioritize the preset style (${stylePreset.name}) over the mood board images.`;
-		} else if (styleInfluence > 66) {
-			influencePrompt = `Heavily prioritize the provided mood board images for style inspiration over the preset style.`;
-		} else {
-			influencePrompt = `Blend the preset style (${stylePreset.name}) and the mood board images evenly.`;
-		}
-	} else {
-		influencePrompt = 'Use the preset style as the primary design guide.';
-	}
+	const influencePrompt = buildInfluencePrompt(moodBoardImages.length, styleInfluence, stylePreset.name);
+	const furniturePrompt = buildFurniturePrompt(!!furnitureImage, roomType);
 
-	const furniturePrompt = furnitureImage
-		? `
-    **Furniture Integration:**
-    - An image of a specific piece of furniture has been provided. You MUST incorporate this exact piece of furniture into the final design.
-    - **Crucial Placement Instructions:**
-        1.  **Analyze Layout:** First, analyze the original room's layout, perspective, and existing furniture arrangement.
-        2.  **Natural Placement:** Place the new furniture in a functionally appropriate and aesthetically pleasing position within the ${roomType}. For example, a sofa should be against a wall or defining a seating area, not floating awkwardly in a corner.
-        3.  **Correct Scale & Perspective:** The furniture MUST be scaled to realistic proportions relative to the room and other objects. Its perspective must perfectly align with the room's vanishing points.
-        4.  **Seamless Integration:** The final result should be photorealistic and look like a single, cohesive photograph. The furniture should not look like it was digitally added.
-        5.  **Lighting and Shadows:** Meticulously match the lighting on the new furniture to the room's existing light sources. It must cast accurate and soft shadows on the floor and surrounding objects to ground it in the scene.`
-		: '';
-
-	const fullPrompt = `
-    Act as an expert interior designer. ${isRefinement ? 'Refine the provided image based on the user request.' : 'Redesign the provided room image.'}
-
-    **Primary Instructions:**
-    - Room Type: ${roomType}
-    - Aesthetic Style: ${stylePreset.name}
-    - Style Influence: ${influencePrompt}
-    - User's specific requests: "${textPrompt || 'No specific requests.'}"
-    ${furniturePrompt}
-
-    **Design Constraints:**
-    1.  The final image MUST be a photorealistic rendering.
-    2.  Do NOT change the room's core structure, such as walls, windows, or doors position.
-    3.  Mantain the amount of windows.
-    4.  ${isRefinement ? 'Apply the requested changes to the image.' : 'Focus on changing materials (flooring, walls), furniture, lighting, and decor to match the requested style.'}
-    5.  Maintain the original room's geometry and proportions.
-    6.  Mantain the picture perspective
-
-    Generate the ${isRefinement ? 'refined' : 'redesigned'} room image.
-  `;
+	const fullPrompt = buildVisualizationPrompt({
+		isRefinement: Boolean(isRefinement),
+		roomType,
+		stylePresetName: stylePreset.name,
+		influencePrompt,
+		textPrompt,
+		furniturePrompt,
+	});
 
 	const roomImagePart = bufferToGenerativePart(roomImage);
 
 	const moodBoardParts = moodBoardImages.map(bufferToGenerativePart);
 
-	const parts = [
+	const parts: Array<{ inlineData: { data: string; mimeType: string } } | { text: string }> = [
 		roomImagePart,
-		{ text: fullPrompt },
-		...moodBoardParts,
 	];
+
+	// Add previous result image for refinement context
+	if (isRefinement && previousResultImage) {
+		const previousResultPart = bufferToGenerativePart(previousResultImage);
+		parts.push(previousResultPart);
+	}
+
+	// Add the prompt
+	parts.push({ text: fullPrompt });
+
+	// Add mood board images
+	parts.push(...moodBoardParts);
 
 	if (furnitureImage) {
 		const furnitureImagePart = bufferToGenerativePart(furnitureImage);

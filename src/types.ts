@@ -14,4 +14,6 @@ export interface GenerateVisualizationParams {
   textPrompt: string;
   styleInfluence: number;
   isRefinement?: boolean;
+  // Previous generated image for refinement context
+  previousResultImage?: (MultipartFile & { buffer: Buffer }) | null;
 }
